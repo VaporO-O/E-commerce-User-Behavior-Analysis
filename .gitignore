@@ -4,3 +4,5 @@ data/sample/*
 !data/sample/.gitkeep
 !data/sample/user_behavior_sample_summary.json
 .claude
+.vscode
+hyt.session.sql
