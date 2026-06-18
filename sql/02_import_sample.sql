@@ -9,11 +9,6 @@ USE ecommerce_analysis;
 
 TRUNCATE TABLE user_behavior_raw;
 
--- 批量导入提速：单事务提交 + 关闭唯一性/外键校验，减少每行的事务与校验开销。
-SET autocommit = 0;
-SET unique_checks = 0;
-SET foreign_key_checks = 0;
-
 LOAD DATA LOCAL INFILE 'D:/hyt/project/1/data/sample/user_behavior_sample.csv'
 INTO TABLE user_behavior_raw
 CHARACTER SET utf8mb4
@@ -38,12 +33,6 @@ SET
   category_code = NULLIF(TRIM(@category_code), ''),
   brand = NULLIF(TRIM(@brand), ''),
   user_session = NULLIF(TRIM(@user_session), '');
-
--- 提交本次导入并恢复会话设置。
-COMMIT;
-SET unique_checks = 1;
-SET foreign_key_checks = 1;
-SET autocommit = 1;
 
 -- 导入后快速核对：样本摘要里应为 1,112,300 行。
 SELECT COUNT(*) AS raw_rows
