@@ -18,10 +18,9 @@ CREATE TABLE user_behavior_raw (
   brand          VARCHAR(255) NULL COMMENT '品牌，原始数据可能为空',
   price          DECIMAL(12,2) NOT NULL COMMENT '价格',
   user_id        BIGINT UNSIGNED NOT NULL COMMENT '用户 ID',
-  user_session   VARCHAR(64) NULL COMMENT '会话 ID',
-  KEY idx_raw_user_id (user_id),
-  KEY idx_raw_event_type (event_type),
-  KEY idx_raw_product_id (product_id)
+  user_session   VARCHAR(64) NULL COMMENT '会话 ID'
+  -- raw 表只是 03 清洗时做一次全表扫描的中转站，没有任何查询按列检索它，
+  -- 因此不建任何二级索引，避免拖慢 02 的 LOAD DATA。
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='原始抽样行为表';
 
 DROP TABLE IF EXISTS user_behavior_clean;
@@ -40,13 +39,7 @@ CREATE TABLE user_behavior_clean (
   price              DECIMAL(12,2) NOT NULL COMMENT '价格，仅保留 price > 0',
   user_id            BIGINT UNSIGNED NOT NULL COMMENT '用户 ID',
   user_session       VARCHAR(64) NOT NULL COMMENT '会话 ID，缺失填 unknown',
-  PRIMARY KEY (id),
-  KEY idx_clean_time (event_time_utc),
-  KEY idx_clean_date (event_date_utc),
-  KEY idx_clean_user_time (user_id, event_time_utc),
-  KEY idx_clean_event_type (event_type),
-  KEY idx_clean_session (user_session),
-  KEY idx_clean_product (product_id),
-  KEY idx_clean_category (category_id),
-  KEY idx_clean_brand (brand)
+  PRIMARY KEY (id)
+  -- 二级索引不在这里建：空表逐行维护索引会拖慢 03 的 INSERT。
+  -- 改为在 03 灌完数据后，用 ALTER TABLE 一次性补两个真正用得上的精简索引。
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='清洗后的用户行为表';
