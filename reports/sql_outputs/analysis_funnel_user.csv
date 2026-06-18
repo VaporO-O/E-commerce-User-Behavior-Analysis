@@ -1,0 +1,4 @@
+﻿stage_order,stage,users,previous_stage_rate,view_to_stage_rate
+1,view,53274,1.0000,1.0000
+2,cart_after_view,10575,0.1985,0.1985
+3,purchase_after_cart,4729,0.4472,0.0888
