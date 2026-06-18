@@ -3,10 +3,16 @@
 -- 1. cohort_date = 用户首次活跃日期。
 -- 2. retention_day = 活跃日期 - 首次活跃日期。
 -- 3. 次日 / 7 日 / 30 日留存只在观察窗口足够时计算，否则置为 NULL。
+-- 4. 本脚本会将关键结果落表，表名统一以 analysis_ 开头。
 
 USE ecommerce_analysis;
 
+DROP TABLE IF EXISTS analysis_retention_cohort_summary;
+DROP TABLE IF EXISTS analysis_retention_matrix_30d;
+DROP TABLE IF EXISTS analysis_repurchase_retention;
+
 -- 1. 首次活跃 cohort 的 D1 / D7 / D30 留存。
+CREATE TABLE analysis_retention_cohort_summary AS
 WITH first_active AS (
   SELECT
     user_id,
@@ -66,10 +72,13 @@ FROM cohort_size AS c
 LEFT JOIN cohort_activity AS ca
   ON c.cohort_date = ca.cohort_date
 CROSS JOIN date_bound AS d
-GROUP BY c.cohort_date, c.cohort_users, d.max_event_date
-ORDER BY c.cohort_date;
+GROUP BY c.cohort_date, c.cohort_users, d.max_event_date;
+
+ALTER TABLE analysis_retention_cohort_summary
+  ADD PRIMARY KEY (cohort_date);
 
 -- 2. 0-30 天留存明细矩阵，适合导出做热力图。
+CREATE TABLE analysis_retention_matrix_30d AS
 WITH first_active AS (
   SELECT
     user_id,
@@ -110,10 +119,13 @@ SELECT
 FROM cohort_activity AS ca
 JOIN cohort_size AS cs
   ON ca.cohort_date = cs.cohort_date
-GROUP BY ca.cohort_date, ca.retention_day, cs.cohort_users
-ORDER BY ca.cohort_date, ca.retention_day;
+GROUP BY ca.cohort_date, ca.retention_day, cs.cohort_users;
+
+ALTER TABLE analysis_retention_matrix_30d
+  ADD PRIMARY KEY (cohort_date, retention_day);
 
 -- 3. 购买用户复购留存：首次购买后 D1 / D7 / D30 是否再次购买。
+CREATE TABLE analysis_repurchase_retention AS
 WITH first_purchase AS (
   SELECT
     user_id,
@@ -175,6 +187,13 @@ FROM cohort_size AS c
 LEFT JOIN cohort_activity AS ca
   ON c.purchase_cohort_date = ca.purchase_cohort_date
 CROSS JOIN date_bound AS d
-GROUP BY c.purchase_cohort_date, c.purchase_users, d.max_event_date
-ORDER BY c.purchase_cohort_date;
+GROUP BY c.purchase_cohort_date, c.purchase_users, d.max_event_date;
+
+ALTER TABLE analysis_repurchase_retention
+  ADD PRIMARY KEY (purchase_cohort_date);
+
+-- 执行后查看结果。
+SELECT * FROM analysis_retention_cohort_summary ORDER BY cohort_date;
+SELECT * FROM analysis_retention_matrix_30d ORDER BY cohort_date, retention_day;
+SELECT * FROM analysis_repurchase_retention ORDER BY purchase_cohort_date;
 
