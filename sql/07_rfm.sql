@@ -2,7 +2,9 @@
 -- 口径说明：
 -- 1. 仅针对发生过 purchase 的用户。
 -- 2. Recency = 分析日期 - 最近一次购买日期；分析日期取样本最大日期的下一天。
--- 3. Frequency = 购买事件数。
+-- 3. Frequency = 购买次数（按会话去重）。注意：REES46 一个订单含多件商品会
+--    产生多行 purchase（同一 user_session），直接 COUNT(*) 会把件数当成次数，
+--    故用 COUNT(DISTINCT user_session) 近似订单/购买次数。
 -- 4. Monetary = purchase 事件价格之和。
 -- 5. R/F/M 均按五分位打分，分数越高表示越好。
 -- 6. 本脚本会将关键结果落表，表名统一以 analysis_ 开头。
@@ -51,7 +53,7 @@ FROM (
       d.analysis_date,
       MAX(DATE(b.event_time_utc)) AS last_purchase_date,
       DATEDIFF(d.analysis_date, MAX(DATE(b.event_time_utc))) AS recency_days,
-      COUNT(*) AS frequency,
+      COUNT(DISTINCT b.user_session) AS frequency,
       ROUND(SUM(b.price), 2) AS monetary
     FROM user_behavior_clean AS b
     CROSS JOIN (
