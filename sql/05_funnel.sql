@@ -8,6 +8,7 @@
 USE ecommerce_analysis;
 
 DROP TABLE IF EXISTS analysis_event_distribution;
+DROP TABLE IF EXISTS analysis_funnel_overview;
 DROP TABLE IF EXISTS analysis_funnel_user;
 DROP TABLE IF EXISTS analysis_funnel_session;
 DROP TABLE IF EXISTS analysis_cart_remove_summary;
@@ -25,6 +26,42 @@ GROUP BY event_type;
 
 ALTER TABLE analysis_event_distribution
   ADD PRIMARY KEY (event_type);
+
+-- 1b. 无序总览漏斗：分别统计“曾浏览 / 曾加购 / 曾购买”的独立用户数，不要求先后顺序。
+--     本数据集大量 purchase 没有前置 cart，下面的严格漏斗会低估购买人数，
+--     这里给出不要求顺序的口径作为对照，报告里两者并列解读。
+CREATE TABLE analysis_funnel_overview AS
+WITH user_flags AS (
+  SELECT
+    user_id,
+    MAX(event_type = 'view') AS has_view,
+    MAX(event_type = 'cart') AS has_cart,
+    MAX(event_type = 'purchase') AS has_purchase
+  FROM user_behavior_clean
+  GROUP BY user_id
+),
+flag_counts AS (
+  SELECT
+    SUM(has_view) AS view_users,
+    SUM(has_cart) AS cart_users,
+    SUM(has_purchase) AS purchase_users,
+    COUNT(*) AS total_users
+  FROM user_flags
+)
+SELECT 1 AS stage_order, 'view' AS stage, view_users AS users,
+       ROUND(view_users / NULLIF(total_users, 0), 4) AS share_of_all_users
+FROM flag_counts
+UNION ALL
+SELECT 2 AS stage_order, 'cart' AS stage, cart_users AS users,
+       ROUND(cart_users / NULLIF(total_users, 0), 4) AS share_of_all_users
+FROM flag_counts
+UNION ALL
+SELECT 3 AS stage_order, 'purchase' AS stage, purchase_users AS users,
+       ROUND(purchase_users / NULLIF(total_users, 0), 4) AS share_of_all_users
+FROM flag_counts;
+
+ALTER TABLE analysis_funnel_overview
+  ADD PRIMARY KEY (stage_order);
 
 -- 2. 用户级严格漏斗：view -> cart -> purchase。
 CREATE TABLE analysis_funnel_user AS
@@ -161,11 +198,13 @@ WITH user_brand_flags AS (
   GROUP BY brand, user_id
 ),
 brand_funnel AS (
+  -- 嵌套口径：cart_users 限定“看过且加购过”，purchase_users 限定“看过、加购过且购买过”，
+  -- 保证 purchase ⊆ cart ⊆ view，三个转化率恒 <= 1，与主漏斗口径一致。
   SELECT
     brand,
     SUM(has_view) AS view_users,
-    SUM(has_cart) AS cart_users,
-    SUM(has_purchase) AS purchase_users
+    SUM(has_view AND has_cart) AS cart_users,
+    SUM(has_view AND has_cart AND has_purchase) AS purchase_users
   FROM user_brand_flags
   GROUP BY brand
 )
@@ -187,6 +226,7 @@ ALTER TABLE analysis_brand_funnel_top
 
 -- 执行后查看结果。
 SELECT * FROM analysis_event_distribution ORDER BY events DESC;
+SELECT * FROM analysis_funnel_overview ORDER BY stage_order;
 SELECT * FROM analysis_funnel_user ORDER BY stage_order;
 SELECT * FROM analysis_funnel_session ORDER BY stage_order;
 SELECT * FROM analysis_cart_remove_summary;

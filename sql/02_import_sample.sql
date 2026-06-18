@@ -14,7 +14,9 @@ INTO TABLE user_behavior_raw
 CHARACTER SET utf8mb4
 FIELDS TERMINATED BY ','
 OPTIONALLY ENCLOSED BY '"'
-LINES TERMINATED BY '\n'
+-- 抽样脚本用 Python csv 模块写出，默认行终止符为 \r\n；
+-- 这里必须按 \r\n 切行，否则行尾的 \r 会粘在最后一列 user_session 上。
+LINES TERMINATED BY '\r\n'
 IGNORE 1 LINES
 (
   event_time,
