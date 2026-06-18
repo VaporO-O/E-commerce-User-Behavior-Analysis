@@ -54,6 +54,14 @@ WHERE parsed.event_time_utc >= '2019-10-01 00:00:00'
   AND parsed.event_type IN ('view', 'cart', 'remove_from_cart', 'purchase')
   AND parsed.price > 0;
 
+-- 灌完数据后一次性补索引（比建表时带索引、逐行维护更快）。只保留两个真正用得上的：
+-- 1. (user_id, event_time_utc)：按用户分组/排序的漏斗、留存能用上。
+-- 2. (event_type, user_id, event_time_utc, price) 覆盖索引：07 RFM、06 复购都先
+--    WHERE event_type='purchase'，purchase 是少数行，可只扫购买行且覆盖所需列。
+ALTER TABLE user_behavior_clean
+  ADD INDEX idx_clean_user_time (user_id, event_time_utc),
+  ADD INDEX idx_clean_purchase_cover (event_type, user_id, event_time_utc, price);
+
 -- 清洗结果总览：重点看 raw_rows、clean_rows、removed_rows。
 SELECT
   raw_stat.raw_rows,

@@ -10,15 +10,27 @@ USE ecommerce_analysis;
 DROP TABLE IF EXISTS analysis_retention_cohort_summary;
 DROP TABLE IF EXISTS analysis_retention_matrix_30d;
 DROP TABLE IF EXISTS analysis_repurchase_retention;
+DROP TABLE IF EXISTS user_first_active;
+
+-- 先物化「用户首次活跃日」基表，下面 cohort 留存的两个查询都复用它，
+-- 避免对 user_behavior_clean 重复做 GROUP BY user_id 的全表扫描。
+CREATE TABLE user_first_active AS
+SELECT
+  user_id,
+  MIN(event_date_utc) AS cohort_date
+FROM user_behavior_clean
+GROUP BY user_id;
+
+ALTER TABLE user_first_active
+  ADD PRIMARY KEY (user_id),
+  ADD KEY idx_ufa_cohort (cohort_date);
 
 -- 1. 首次活跃 cohort 的 D1 / D7 / D30 留存。
 CREATE TABLE analysis_retention_cohort_summary AS
 WITH first_active AS (
-  SELECT
-    user_id,
-    MIN(event_date_utc) AS cohort_date
-  FROM user_behavior_clean
-  GROUP BY user_id
+  -- 复用已物化的首次活跃基表，不再重复全表 GROUP BY。
+  SELECT user_id, cohort_date
+  FROM user_first_active
 ),
 activity AS (
   SELECT DISTINCT
@@ -80,11 +92,9 @@ ALTER TABLE analysis_retention_cohort_summary
 -- 2. 0-30 天留存明细矩阵，适合导出做热力图。
 CREATE TABLE analysis_retention_matrix_30d AS
 WITH first_active AS (
-  SELECT
-    user_id,
-    MIN(event_date_utc) AS cohort_date
-  FROM user_behavior_clean
-  GROUP BY user_id
+  -- 复用已物化的首次活跃基表，不再重复全表 GROUP BY。
+  SELECT user_id, cohort_date
+  FROM user_first_active
 ),
 activity AS (
   SELECT DISTINCT
