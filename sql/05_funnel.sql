@@ -3,20 +3,31 @@
 -- 1. user-level strict funnel：同一用户在样本窗口内按 view -> cart -> purchase 顺序发生。
 -- 2. session-level strict funnel：同一会话内按 view -> cart -> purchase 顺序发生。
 -- 3. remove_from_cart 不作为主漏斗节点，单独观察“加购流失”。
+-- 4. 本脚本会将关键结果落表，表名统一以 analysis_ 开头。
 
 USE ecommerce_analysis;
 
+DROP TABLE IF EXISTS analysis_event_distribution;
+DROP TABLE IF EXISTS analysis_funnel_user;
+DROP TABLE IF EXISTS analysis_funnel_session;
+DROP TABLE IF EXISTS analysis_cart_remove_summary;
+DROP TABLE IF EXISTS analysis_brand_funnel_top;
+
 -- 1. 行为事件整体分布。
+CREATE TABLE analysis_event_distribution AS
 SELECT
   event_type,
   COUNT(*) AS events,
   COUNT(DISTINCT user_id) AS users,
   COUNT(DISTINCT user_session) AS sessions
 FROM user_behavior_clean
-GROUP BY event_type
-ORDER BY events DESC;
+GROUP BY event_type;
+
+ALTER TABLE analysis_event_distribution
+  ADD PRIMARY KEY (event_type);
 
 -- 2. 用户级严格漏斗：view -> cart -> purchase。
+CREATE TABLE analysis_funnel_user AS
 WITH first_event AS (
   SELECT
     user_id,
@@ -61,10 +72,13 @@ SELECT
   purchase_users AS users,
   ROUND(purchase_users / NULLIF(cart_users, 0), 4) AS previous_stage_rate,
   ROUND(purchase_users / NULLIF(view_users, 0), 4) AS view_to_stage_rate
-FROM funnel_counts
-ORDER BY stage_order;
+FROM funnel_counts;
+
+ALTER TABLE analysis_funnel_user
+  ADD PRIMARY KEY (stage_order);
 
 -- 3. 会话级严格漏斗：同一个 user_session 内 view -> cart -> purchase。
+CREATE TABLE analysis_funnel_session AS
 WITH first_event AS (
   SELECT
     user_session,
@@ -110,10 +124,13 @@ SELECT
   purchase_sessions AS sessions,
   ROUND(purchase_sessions / NULLIF(cart_sessions, 0), 4) AS previous_stage_rate,
   ROUND(purchase_sessions / NULLIF(view_sessions, 0), 4) AS view_to_stage_rate
-FROM funnel_counts
-ORDER BY stage_order;
+FROM funnel_counts;
+
+ALTER TABLE analysis_funnel_session
+  ADD PRIMARY KEY (stage_order);
 
 -- 4. 加购流失辅助观察：发生过 cart 的用户中，有多少也发生 remove_from_cart。
+CREATE TABLE analysis_cart_remove_summary AS
 WITH user_flags AS (
   SELECT
     user_id,
@@ -131,6 +148,7 @@ SELECT
 FROM user_flags;
 
 -- 5. 品牌维度漏斗：用于找出“流量大但转化弱”的品牌。
+CREATE TABLE analysis_brand_funnel_top AS
 WITH user_brand_flags AS (
   SELECT
     brand,
@@ -163,4 +181,14 @@ FROM brand_funnel
 WHERE view_users >= 100
 ORDER BY view_users DESC
 LIMIT 30;
+
+ALTER TABLE analysis_brand_funnel_top
+  ADD PRIMARY KEY (brand);
+
+-- 执行后查看结果。
+SELECT * FROM analysis_event_distribution ORDER BY events DESC;
+SELECT * FROM analysis_funnel_user ORDER BY stage_order;
+SELECT * FROM analysis_funnel_session ORDER BY stage_order;
+SELECT * FROM analysis_cart_remove_summary;
+SELECT * FROM analysis_brand_funnel_top ORDER BY view_users DESC;
 

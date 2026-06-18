@@ -5,10 +5,14 @@
 -- 3. Frequency = 购买事件数。
 -- 4. Monetary = purchase 事件价格之和。
 -- 5. R/F/M 均按五分位打分，分数越高表示越好。
+-- 6. 本脚本会将关键结果落表，表名统一以 analysis_ 开头。
 
 USE ecommerce_analysis;
 
 DROP TABLE IF EXISTS rfm_user_segments;
+DROP TABLE IF EXISTS analysis_rfm_segment_summary;
+DROP TABLE IF EXISTS analysis_rfm_metric_summary;
+DROP TABLE IF EXISTS analysis_rfm_top_users;
 
 CREATE TABLE rfm_user_segments AS
 SELECT
@@ -67,6 +71,7 @@ ALTER TABLE rfm_user_segments
   ADD KEY idx_rfm_monetary (monetary);
 
 -- 1. RFM 分层规模和价值贡献。
+CREATE TABLE analysis_rfm_segment_summary AS
 SELECT
   user_segment,
   COUNT(*) AS users,
@@ -86,7 +91,11 @@ CROSS JOIN (
 GROUP BY user_segment, total_stat.total_users, total_stat.total_monetary
 ORDER BY segment_monetary DESC;
 
+ALTER TABLE analysis_rfm_segment_summary
+  ADD PRIMARY KEY (user_segment);
+
 -- 2. RFM 原始指标概览。
+CREATE TABLE analysis_rfm_metric_summary AS
 SELECT
   COUNT(*) AS purchase_users,
   MIN(recency_days) AS min_recency_days,
@@ -101,6 +110,7 @@ SELECT
 FROM rfm_user_segments;
 
 -- 3. 高价值用户 Top 50，可作为后续画像或运营策略样本。
+CREATE TABLE analysis_rfm_top_users AS
 SELECT
   user_id,
   user_segment,
@@ -113,3 +123,10 @@ FROM rfm_user_segments
 ORDER BY monetary DESC, frequency DESC, recency_days ASC
 LIMIT 50;
 
+ALTER TABLE analysis_rfm_top_users
+  ADD PRIMARY KEY (user_id);
+
+-- 执行后查看结果。
+SELECT * FROM analysis_rfm_segment_summary ORDER BY segment_monetary DESC;
+SELECT * FROM analysis_rfm_metric_summary;
+SELECT * FROM analysis_rfm_top_users ORDER BY monetary DESC, frequency DESC, recency_days ASC;

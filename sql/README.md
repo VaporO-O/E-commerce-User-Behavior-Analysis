@@ -30,15 +30,18 @@ data/sample/user_behavior_sample.csv
 5. `05_funnel.sql`
    - 计算用户级和会话级转化漏斗。
    - 单独观察 `remove_from_cart` 带来的加购流失。
+   - 生成 `analysis_event_distribution`、`analysis_funnel_user`、`analysis_funnel_session`、`analysis_cart_remove_summary`、`analysis_brand_funnel_top`。
 
 6. `06_retention.sql`
    - 计算首次活跃 cohort 的 D1 / D7 / D30 留存。
    - 输出 0-30 天留存明细矩阵。
    - 计算首次购买后的复购留存。
+   - 生成 `analysis_retention_cohort_summary`、`analysis_retention_matrix_30d`、`analysis_repurchase_retention`。
 
 7. `07_rfm.sql`
    - 创建 `rfm_user_segments` 表。
    - 输出 RFM 分层规模、价值贡献和高价值用户样本。
+   - 生成 `analysis_rfm_segment_summary`、`analysis_rfm_metric_summary`、`analysis_rfm_top_users`。
 
 ## 命令行执行示例
 
