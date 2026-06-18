@@ -1,0 +1,24 @@
+{
+  "method": "stable_hash_by_user_id",
+  "rate": 0.01,
+  "seed": "stage-0-sampling",
+  "dry_run": false,
+  "max_rows": null,
+  "input_files": [
+    {
+      "file": "data\\raw\\2019-Oct.csv",
+      "rows": 42448764,
+      "sampled_rows": 433555
+    },
+    {
+      "file": "data\\raw\\2019-Nov.csv",
+      "rows": 67501979,
+      "sampled_rows": 678745
+    }
+  ],
+  "output": "data\\sample\\user_behavior_sample.csv",
+  "total_rows": 109950743,
+  "sampled_rows": 1112300,
+  "sampled_users": 53293,
+  "elapsed_seconds": 372.68
+}
