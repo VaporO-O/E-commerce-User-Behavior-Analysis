@@ -40,6 +40,8 @@ RESULT_TABLES = [
     "analysis_rfm_segment_summary",
     "analysis_rfm_metric_summary",
     "analysis_rfm_top_users",
+    "analysis_metrics_overview",
+    "analysis_metrics_daily",
 ]
 
 
