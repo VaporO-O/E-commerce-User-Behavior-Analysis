@@ -6,3 +6,5 @@ data/sample/*
 .claude
 .vscode
 hyt.session.sql
+# 内部项目总纲，不对外展示
+PROJECT.md
